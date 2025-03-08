@@ -57,30 +57,30 @@ func (u *UserInfo) View() string {
 	var content string
 
 	// Info section
-	content += userInfoTitleStyle.Render("Info") + "\n"
-	content += "Name: " + u.user.Name + "\n"
+	content += userInfoTitleStyle.Render("  Info") + "\n"
+	content += "  Name: " + u.user.Name + "\n"
 	if u.user.Bio != "" {
-		content += "Bio: " + u.user.Bio + "\n"
+		content += "  Bio: " + u.user.Bio + "\n"
 	}
 	if u.user.Pronouns != "" {
-		content += "Pronouns: " + u.user.Pronouns + "\n"
+		content += "  Pronouns: " + u.user.Pronouns + "\n"
 	}
 	if u.user.Company != "" {
-		content += "Company: " + u.user.Company + "\n"
+		content += "  Company: " + u.user.Company + "\n"
 	}
 	if u.user.Location != "" {
-		content += "Location: " + u.user.Location + "\n"
+		content += "  Location: " + u.user.Location + "\n"
 	}
 	if u.user.WebsiteURL != "" {
-		content += "Website: " + u.user.WebsiteURL + "\n"
+		content += "  Website: " + u.user.WebsiteURL + "\n"
 	}
 	content += "\n"
 
 	// Social accounts section
 	if len(u.user.Social) > 0 {
-		content += userInfoTitleStyle.Render("Social accounts") + "\n"
+		content += userInfoTitleStyle.Render("  Social accounts") + "\n"
 		for _, account := range u.user.Social {
-			content += fmt.Sprintf("%s: %s\n",
+			content += fmt.Sprintf("  %s: %s\n",
 				account.Provider,
 				account.URL,
 			)
@@ -95,7 +95,7 @@ func (u *UserInfo) View() string {
 		}
 
 		// Create a divider line using box-drawing characters
-		divider := strings.Repeat("─", 50) + "\n\n"
+		divider := "  " + strings.Repeat("─", 50) + "\n\n"
 		content += divider
 		content += u.cachedREADME
 	}

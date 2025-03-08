@@ -16,7 +16,8 @@ type DefaultRenderer struct {
 // NewDefaultRenderer creates a new DefaultRenderer instance
 func NewDefaultRenderer() *DefaultRenderer {
 	renderer, _ := glamour.NewTermRenderer(
-		glamour.WithStandardStyle("dark"),
+		glamour.WithAutoStyle(),
+		glamour.WithEmoji(),
 		glamour.WithWordWrap(80),
 	)
 	return &DefaultRenderer{
@@ -29,7 +30,8 @@ func NewDefaultRenderer() *DefaultRenderer {
 func (r *DefaultRenderer) Render(markdown string, width int) string {
 	if r.renderer == nil || width != r.width {
 		renderer, err := glamour.NewTermRenderer(
-			glamour.WithStandardStyle("dark"),
+			glamour.WithAutoStyle(),
+			glamour.WithEmoji(),
 			glamour.WithWordWrap(width),
 		)
 		if err != nil {
