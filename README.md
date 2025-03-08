@@ -12,6 +12,12 @@ gh extension install tnagatomi/gh-portrait
 
 - GitHub CLI (gh)
 
+## Usage
+
+```bash
+gh portrait [username]
+```
+
 ## Features
 
 ### User Profile View
@@ -19,17 +25,17 @@ gh extension install tnagatomi/gh-portrait
 - Display user information
 - Show user's README
 
+<img width="469" alt="Info tab" src="https://github.com/user-attachments/assets/93c7df43-5c64-4c27-bb76-ae27821f8975" />
+
 ### Repository List
 
 - Browse user repositories
   - Pinned, most starred repositories, most starred contributed repositories
 - Open selected repository by browser
 
-## Usage
-
-```bash
-gh portrait [username]
-```
+<img width="833" alt="Pinned tab" src="https://github.com/user-attachments/assets/31ab8237-8ac0-447b-9e38-cd350a472cab" />
+<img width="1099" alt="Ownning tab" src="https://github.com/user-attachments/assets/df30cc88-d592-4c36-97fd-5414cbea9b91" />
+<img width="862" alt="Contributed tab" src="https://github.com/user-attachments/assets/52128e3c-5b39-4bce-a90a-37b53494cbc8" />
 
 ### Navigation
 
