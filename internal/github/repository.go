@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"sort"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/shurcooL-graphql"
@@ -165,6 +166,11 @@ func FetchContributedRepositories(ctx context.Context, login string) ([]Reposito
 			Language:    string(node.PrimaryLanguage.Name),
 		})
 	}
+
+	// Sort repositories by star count in descending order
+	sort.Slice(repos, func(i, j int) bool {
+		return repos[i].StarCount > repos[j].StarCount
+	})
 
 	return repos, nil
 }
