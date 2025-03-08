@@ -69,7 +69,7 @@ func Start(user *github.User) error {
 func New(user *github.User) Model {
 	tabs := components.NewTabs([]string{"Info", "Pinned", "Owning", "Contributed"})
 	repoList := components.NewRepositoryList(nil, "pinned")
-	userInfo := components.NewUserInfo(user)
+	userInfo := components.NewUserInfo(user, components.NewDefaultRenderer())
 
 	return Model{
 		user:         user,
@@ -159,6 +159,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.Height = msg.Height - 4
 		}
 		m.repoList.SetSize(msg.Width, msg.Height-4)
+		m.userInfo.SetWidth(msg.Width)
 
 	case components.RepositorySelectedMsg:
 		if msg.Repository != nil {

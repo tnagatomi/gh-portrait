@@ -18,6 +18,7 @@ type User struct {
 	Following  int
 	Followers  int
 	Social     []SocialAccount
+	README     *string // Nullable README content
 }
 
 type SocialAccount struct {
@@ -52,6 +53,13 @@ func FetchUser(ctx context.Context, login string) (*User, error) {
 					URL      graphql.String
 				}
 			} `graphql:"socialAccounts(first: 10)"`
+			Repository struct {
+				Object struct {
+					Blob struct {
+						Text graphql.String
+					} `graphql:"... on Blob"`
+				} `graphql:"object(expression: \"HEAD:README.md\")"`
+			} `graphql:"repository(name: $login)"`
 		} `graphql:"user(login: $login)"`
 	}
 
@@ -73,6 +81,12 @@ func FetchUser(ctx context.Context, login string) (*User, error) {
 		})
 	}
 
+	// Get README if it exists
+	var readme *string
+	if text := string(query.User.Repository.Object.Blob.Text); text != "" {
+		readme = &text
+	}
+
 	return &User{
 		Login:      string(query.User.Login),
 		Name:       string(query.User.Name),
@@ -84,5 +98,6 @@ func FetchUser(ctx context.Context, login string) (*User, error) {
 		Following:  int(query.User.Following.TotalCount),
 		Followers:  int(query.User.Followers.TotalCount),
 		Social:     social,
+		README:     readme,
 	}, nil
 }

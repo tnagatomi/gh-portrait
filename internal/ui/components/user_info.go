@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/tnagatomi/gh-portrait/internal/github"
@@ -15,18 +16,44 @@ var (
 
 // UserInfo represents the user information view
 type UserInfo struct {
-	user *github.User
+	user           *github.User
+	renderer       MarkdownRenderer
+	cachedREADME   string
+	viewWidth      int
+	readmeRendered bool
 }
 
 // NewUserInfo creates a new UserInfo instance
-func NewUserInfo(user *github.User) UserInfo {
+func NewUserInfo(user *github.User, renderer MarkdownRenderer) UserInfo {
 	return UserInfo{
-		user: user,
+		user:           user,
+		renderer:       renderer,
+		viewWidth:      80, // Default width
+		readmeRendered: false,
 	}
 }
 
+// SetWidth updates the view width and triggers README re-rendering if needed
+func (u *UserInfo) SetWidth(width int) {
+	if u.viewWidth != width {
+		u.viewWidth = width
+		u.readmeRendered = false // Force re-render on width change
+	}
+}
+
+// renderREADME renders the README content with the current width
+func (u *UserInfo) renderREADME() {
+	if u.user.README == nil {
+		u.cachedREADME = ""
+		return
+	}
+
+	u.cachedREADME = u.renderer.Render(*u.user.README, u.viewWidth)
+	u.readmeRendered = true
+}
+
 // View renders the user information
-func (u UserInfo) View() string {
+func (u *UserInfo) View() string {
 	var content string
 
 	// Info section
@@ -58,6 +85,19 @@ func (u UserInfo) View() string {
 				account.URL,
 			)
 		}
+		content += "\n"
+	}
+
+	// README section
+	if u.user.README != nil {
+		if !u.readmeRendered {
+			u.renderREADME()
+		}
+
+		// Create a divider line using box-drawing characters
+		divider := strings.Repeat("─", 50) + "\n\n"
+		content += divider
+		content += u.cachedREADME
 	}
 
 	return content
