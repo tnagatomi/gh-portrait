@@ -2,9 +2,10 @@ package github
 
 import (
 	"context"
+	"strings"
 
 	"github.com/cli/go-gh/v2/pkg/api"
-	"github.com/cli/shurcooL-graphql"
+	graphql "github.com/cli/shurcooL-graphql"
 )
 
 type User struct {
@@ -54,7 +55,7 @@ func FetchUser(ctx context.Context, login string) (*User, error) {
 				}
 			} `graphql:"socialAccounts(first: 10)"`
 			Repository struct {
-				Object struct {
+				Object *struct {
 					Blob struct {
 						Text graphql.String
 					} `graphql:"... on Blob"`
@@ -69,7 +70,12 @@ func FetchUser(ctx context.Context, login string) (*User, error) {
 
 	err = client.Query("FetchUser", &query, variables)
 	if err != nil {
-		return nil, err
+		if strings.Contains(err.Error(), "Could not resolve to a Repository") {
+			// Ignore repository not found error
+			err = nil
+		} else {
+			return nil, err
+		}
 	}
 
 	// Convert social accounts
@@ -83,8 +89,10 @@ func FetchUser(ctx context.Context, login string) (*User, error) {
 
 	// Get README if it exists
 	var readme *string
-	if text := string(query.User.Repository.Object.Blob.Text); text != "" {
-		readme = &text
+	if query.User.Repository.Object != nil {
+		if text := string(query.User.Repository.Object.Blob.Text); text != "" {
+			readme = &text
+		}
 	}
 
 	return &User{
