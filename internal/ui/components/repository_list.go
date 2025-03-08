@@ -18,14 +18,22 @@ var (
 // RepositoryItem represents a repository in the list
 type RepositoryItem struct {
 	repository github.Repository
+	listType   string
 }
 
 // Title returns the repository name and language
 func (r RepositoryItem) Title() string {
-	if r.repository.Language != "" {
-		return fmt.Sprintf("%s (%s)", r.repository.Name, r.repository.Language)
+	var name string
+	if r.listType == "contributed" {
+		name = fmt.Sprintf("%s/%s", r.repository.Owner, r.repository.Name)
+	} else {
+		name = r.repository.Name
 	}
-	return r.repository.Name
+
+	if r.repository.Language != "" {
+		return fmt.Sprintf("%s (%s)", name, r.repository.Language)
+	}
+	return name
 }
 
 // Description returns the repository description and star count
@@ -58,7 +66,7 @@ type RepositoryList struct {
 func NewRepositoryList(repositories []github.Repository, listType string) RepositoryList {
 	items := make([]list.Item, len(repositories))
 	for i, repo := range repositories {
-		items[i] = RepositoryItem{repository: repo}
+		items[i] = RepositoryItem{repository: repo, listType: listType}
 	}
 
 	delegate := list.NewDefaultDelegate()
@@ -76,6 +84,8 @@ func NewRepositoryList(repositories []github.Repository, listType string) Reposi
 		l.Title = "Pinned repositories"
 	case "owning":
 		l.Title = "Most starred repositories"
+	case "contributed":
+		l.Title = "Most starred contributed repositories (in the past year)"
 	}
 
 	l.Styles.FilterPrompt = lipgloss.NewStyle()

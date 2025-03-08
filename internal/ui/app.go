@@ -38,21 +38,23 @@ type tabSelectedMsg struct {
 
 // Model represents the main application UI model
 type Model struct {
-	user            *github.User
-	pinnedRepos     []github.Repository
-	owningRepos     []github.Repository
-	tabs            components.Tabs
-	repoList        components.RepositoryList
-	userInfo        components.UserInfo
-	viewport        viewport.Model
-	ready           bool
-	width           int
-	height          int
-	loading         bool
-	error           error
-	pinnedLoaded    bool
-	owningLoaded    bool
-	currentTabIndex int
+	user              *github.User
+	pinnedRepos       []github.Repository
+	owningRepos       []github.Repository
+	contributedRepos  []github.Repository
+	tabs              components.Tabs
+	repoList          components.RepositoryList
+	userInfo          components.UserInfo
+	viewport          viewport.Model
+	ready             bool
+	width             int
+	height            int
+	loading           bool
+	error             error
+	pinnedLoaded      bool
+	owningLoaded      bool
+	contributedLoaded bool
+	currentTabIndex   int
 }
 
 // Start initializes and starts the TUI application
@@ -65,7 +67,7 @@ func Start(user *github.User) error {
 
 // New creates a new Model instance
 func New(user *github.User) Model {
-	tabs := components.NewTabs([]string{"Info", "Pinned", "Owning"})
+	tabs := components.NewTabs([]string{"Info", "Pinned", "Owning", "Contributed"})
 	repoList := components.NewRepositoryList(nil, "pinned")
 	userInfo := components.NewUserInfo(user)
 
@@ -101,6 +103,8 @@ func fetchRepositories(username string, tabIndex int) tea.Cmd {
 			repos, err = github.FetchPinnedRepositories(ctx, username)
 		case 2: // Owning
 			repos, err = github.FetchOwningRepositories(ctx, username)
+		case 3: // Contributed
+			repos, err = github.FetchContributedRepositories(ctx, username)
 		}
 
 		return fetchRepositoriesMsg{
@@ -179,6 +183,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.owningRepos = msg.repositories
 			m.owningLoaded = true
 			m.repoList = components.NewRepositoryList(msg.repositories, "owning")
+		case 3: // Contributed
+			m.contributedRepos = msg.repositories
+			m.contributedLoaded = true
+			m.repoList = components.NewRepositoryList(msg.repositories, "contributed")
 		}
 		m.repoList.SetSize(m.width, m.height-4)
 
@@ -203,6 +211,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, cmd)
 			} else if m.owningLoaded {
 				m.repoList = components.NewRepositoryList(m.owningRepos, "owning")
+				m.repoList.SetSize(m.width, m.height-4)
+			}
+		case 3: // Contributed
+			if !m.contributedLoaded && !m.loading {
+				m.loading = true
+				m.error = nil
+				cmd = fetchRepositories(m.user.Login, msg.index)
+				cmds = append(cmds, cmd)
+			} else if m.contributedLoaded {
+				m.repoList = components.NewRepositoryList(m.contributedRepos, "contributed")
 				m.repoList.SetSize(m.width, m.height-4)
 			}
 		}

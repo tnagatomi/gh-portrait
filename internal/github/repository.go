@@ -9,6 +9,7 @@ import (
 
 // Repository represents a GitHub repository
 type Repository struct {
+	Owner       string
 	Name        string
 	Description string
 	URL         string
@@ -28,6 +29,9 @@ func FetchPinnedRepositories(ctx context.Context, login string) ([]Repository, e
 			PinnedItems struct {
 				Nodes []struct {
 					Repository struct {
+						Owner struct {
+							Login graphql.String
+						}
 						Name        graphql.String
 						Description graphql.String
 						URL         graphql.String
@@ -53,6 +57,7 @@ func FetchPinnedRepositories(ctx context.Context, login string) ([]Repository, e
 	repos := make([]Repository, 0, len(query.User.PinnedItems.Nodes))
 	for _, node := range query.User.PinnedItems.Nodes {
 		repos = append(repos, Repository{
+			Owner:       string(node.Repository.Owner.Login),
 			Name:        string(node.Repository.Name),
 			Description: string(node.Repository.Description),
 			URL:         string(node.Repository.URL),
@@ -75,6 +80,9 @@ func FetchOwningRepositories(ctx context.Context, login string) ([]Repository, e
 		User struct {
 			Repositories struct {
 				Nodes []struct {
+					Owner struct {
+						Login graphql.String
+					}
 					Name           graphql.String
 					Description    graphql.String
 					URL            graphql.String
@@ -83,7 +91,7 @@ func FetchOwningRepositories(ctx context.Context, login string) ([]Repository, e
 						Name graphql.String
 					}
 				}
-			} `graphql:"repositories(first: 30, ownerAffiliations: OWNER, orderBy: {field: STARGAZERS, direction: DESC})"`
+			} `graphql:"repositories(first: 30, ownerAffiliations: OWNER, privacy: PUBLIC, orderBy: {field: STARGAZERS, direction: DESC})"`
 		} `graphql:"user(login: $login)"`
 	}
 
@@ -99,6 +107,57 @@ func FetchOwningRepositories(ctx context.Context, login string) ([]Repository, e
 	repos := make([]Repository, 0, len(query.User.Repositories.Nodes))
 	for _, node := range query.User.Repositories.Nodes {
 		repos = append(repos, Repository{
+			Owner:       string(node.Owner.Login),
+			Name:        string(node.Name),
+			Description: string(node.Description),
+			URL:         string(node.URL),
+			StarCount:   int(node.StargazerCount),
+			Language:    string(node.PrimaryLanguage.Name),
+		})
+	}
+
+	return repos, nil
+}
+
+// FetchContributedRepositories fetches repositories that the user has contributed to
+func FetchContributedRepositories(ctx context.Context, login string) ([]Repository, error) {
+	client, err := api.DefaultGraphQLClient()
+	if err != nil {
+		return nil, err
+	}
+
+	var query struct {
+		User struct {
+			RepositoriesContributedTo struct {
+				Nodes []struct {
+					Owner struct {
+						Login graphql.String
+					}
+					Name           graphql.String
+					Description    graphql.String
+					URL            graphql.String
+					StargazerCount graphql.Int
+					PrimaryLanguage struct {
+						Name graphql.String
+					}
+				}
+			} `graphql:"repositoriesContributedTo(first: 30, includeUserRepositories: false, contributionTypes: [COMMIT, PULL_REQUEST, REPOSITORY], privacy: PUBLIC, orderBy: {field: STARGAZERS, direction: DESC})"`
+		} `graphql:"user(login: $login)"`
+	}
+
+	variables := map[string]interface{}{
+		"login": graphql.String(login),
+	}
+
+	err = client.Query("FetchContributedRepositories", &query, variables)
+	if err != nil {
+		return nil, err
+	}
+
+	repos := make([]Repository, 0, len(query.User.RepositoriesContributedTo.Nodes))
+	for _, node := range query.User.RepositoriesContributedTo.Nodes {
+		repos = append(repos, Repository{
+			Owner:       string(node.Owner.Login),
 			Name:        string(node.Name),
 			Description: string(node.Description),
 			URL:         string(node.URL),
