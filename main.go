@@ -1,26 +1,29 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os"
 
-	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/tnagatomi/gh-portrait/internal/github"
+	"github.com/tnagatomi/gh-portrait/internal/ui"
 )
 
 func main() {
-	fmt.Println("hi world, this is the gh-portrait extension!")
-	client, err := api.DefaultRESTClient()
-	if err != nil {
-		fmt.Println(err)
-		return
+	if len(os.Args) != 2 {
+		fmt.Fprintln(os.Stderr, "usage: gh portrait <username>")
+		os.Exit(1)
 	}
-	response := struct {Login string}{}
-	err = client.Get("user", &response)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Printf("running as %s\n", response.Login)
-}
 
-// For more examples of using go-gh, see:
-// https://github.com/cli/go-gh/blob/trunk/example_gh_test.go
+	username := os.Args[1]
+	user, err := github.FetchUser(context.Background(), username)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err := ui.Start(user); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
