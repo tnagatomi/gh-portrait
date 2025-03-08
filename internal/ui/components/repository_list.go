@@ -51,10 +51,11 @@ type RepositorySelectedMsg struct {
 type RepositoryList struct {
 	list     list.Model
 	selected *github.Repository
+	listType string
 }
 
 // NewRepositoryList creates a new RepositoryList
-func NewRepositoryList(repositories []github.Repository) RepositoryList {
+func NewRepositoryList(repositories []github.Repository, listType string) RepositoryList {
 	items := make([]list.Item, len(repositories))
 	for i, repo := range repositories {
 		items[i] = RepositoryItem{repository: repo}
@@ -69,13 +70,21 @@ func NewRepositoryList(repositories []github.Repository) RepositoryList {
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.Styles.Title = titleStyle
+
+	switch listType {
+	case "pinned":
+		l.Title = "Pinned repositories"
+	case "owning":
+		l.Title = "Most starred repositories"
+	}
+
 	l.Styles.FilterPrompt = lipgloss.NewStyle()
 	l.Styles.FilterCursor = lipgloss.NewStyle()
-	l.Title = "Pinned repositories"
 
 	return RepositoryList{
 		list:     l,
 		selected: nil,
+		listType: listType,
 	}
 }
 

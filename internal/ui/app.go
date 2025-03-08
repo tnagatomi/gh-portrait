@@ -28,6 +28,7 @@ var (
 type fetchRepositoriesMsg struct {
 	repositories []github.Repository
 	err         error
+	tabIndex    int
 }
 
 // tabSelectedMsg is sent when a tab is selected
@@ -37,18 +38,21 @@ type tabSelectedMsg struct {
 
 // Model represents the main application UI model
 type Model struct {
-	user         *github.User
-	repositories []github.Repository
-	tabs         components.Tabs
-	repoList     components.RepositoryList
-	userInfo     components.UserInfo
-	viewport     viewport.Model
-	ready        bool
-	width        int
-	height       int
-	loading      bool
-	error        error
-	pinnedLoaded bool
+	user            *github.User
+	pinnedRepos     []github.Repository
+	owningRepos     []github.Repository
+	tabs            components.Tabs
+	repoList        components.RepositoryList
+	userInfo        components.UserInfo
+	viewport        viewport.Model
+	ready           bool
+	width           int
+	height          int
+	loading         bool
+	error           error
+	pinnedLoaded    bool
+	owningLoaded    bool
+	currentTabIndex int
 }
 
 // Start initializes and starts the TUI application
@@ -61,8 +65,8 @@ func Start(user *github.User) error {
 
 // New creates a new Model instance
 func New(user *github.User) Model {
-	tabs := components.NewTabs([]string{"Info", "Pinned"})
-	repoList := components.NewRepositoryList(nil)
+	tabs := components.NewTabs([]string{"Info", "Pinned", "Owning"})
+	repoList := components.NewRepositoryList(nil, "pinned")
 	userInfo := components.NewUserInfo(user)
 
 	return Model{
@@ -74,6 +78,7 @@ func New(user *github.User) Model {
 		loading:      false,
 		error:        nil,
 		pinnedLoaded: false,
+		owningLoaded: false,
 	}
 }
 
@@ -82,11 +87,27 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-// fetchRepositories fetches pinned repositories
-func fetchRepositories(username string) tea.Cmd {
+// fetchRepositories fetches repositories based on the tab index
+func fetchRepositories(username string, tabIndex int) tea.Cmd {
 	return func() tea.Msg {
-		repos, err := github.FetchPinnedRepositories(context.Background(), username)
-		return fetchRepositoriesMsg{repositories: repos, err: err}
+		ctx := context.Background()
+		var (
+			repos []github.Repository
+			err   error
+		)
+
+		switch tabIndex {
+		case 1: // Pinned
+			repos, err = github.FetchPinnedRepositories(ctx, username)
+		case 2: // Owning
+			repos, err = github.FetchOwningRepositories(ctx, username)
+		}
+
+		return fetchRepositoriesMsg{
+			repositories: repos,
+			err:         err,
+			tabIndex:    tabIndex,
+		}
 	}
 }
 
@@ -113,10 +134,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return tabSelectedMsg{index: m.tabs.Current}
 			}
 		case "r":
-			if m.tabs.Current == 1 && m.error != nil {
+			if m.error != nil {
 				m.loading = true
 				m.error = nil
-				cmd = fetchRepositories(m.user.Login)
+				cmd = fetchRepositories(m.user.Login, m.currentTabIndex)
 				cmds = append(cmds, cmd)
 			}
 		}
@@ -143,25 +164,51 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case fetchRepositoriesMsg:
 		m.loading = false
+		m.currentTabIndex = msg.tabIndex
 		if msg.err != nil {
 			m.error = msg.err
 			return m, nil
 		}
-		m.repositories = msg.repositories
-		m.repoList = components.NewRepositoryList(msg.repositories)
+
+		switch msg.tabIndex {
+		case 1: // Pinned
+			m.pinnedRepos = msg.repositories
+			m.pinnedLoaded = true
+			m.repoList = components.NewRepositoryList(msg.repositories, "pinned")
+		case 2: // Owning
+			m.owningRepos = msg.repositories
+			m.owningLoaded = true
+			m.repoList = components.NewRepositoryList(msg.repositories, "owning")
+		}
 		m.repoList.SetSize(m.width, m.height-4)
-		m.pinnedLoaded = true
 
 	case tabSelectedMsg:
-		if msg.index == 1 && !m.pinnedLoaded && !m.loading {
-			m.loading = true
-			m.error = nil
-			cmd = fetchRepositories(m.user.Login)
-			cmds = append(cmds, cmd)
+		m.currentTabIndex = msg.index
+		switch msg.index {
+		case 1: // Pinned
+			if !m.pinnedLoaded && !m.loading {
+				m.loading = true
+				m.error = nil
+				cmd = fetchRepositories(m.user.Login, msg.index)
+				cmds = append(cmds, cmd)
+			} else if m.pinnedLoaded {
+				m.repoList = components.NewRepositoryList(m.pinnedRepos, "pinned")
+				m.repoList.SetSize(m.width, m.height-4)
+			}
+		case 2: // Owning
+			if !m.owningLoaded && !m.loading {
+				m.loading = true
+				m.error = nil
+				cmd = fetchRepositories(m.user.Login, msg.index)
+				cmds = append(cmds, cmd)
+			} else if m.owningLoaded {
+				m.repoList = components.NewRepositoryList(m.owningRepos, "owning")
+				m.repoList.SetSize(m.width, m.height-4)
+			}
 		}
 	}
 
-	if m.tabs.Current == 1 { // Pinned tab
+	if m.tabs.Current > 0 { // Repository tabs
 		newRepoList, cmd := m.repoList.Update(msg)
 		m.repoList = *newRepoList
 		cmds = append(cmds, cmd)
@@ -186,7 +233,7 @@ func (m Model) View() string {
 	content += m.tabs.View() + "\n\n"
 
 	// Content
-	if m.tabs.Current == 1 { // Pinned tab
+	if m.tabs.Current > 0 { // Repository tabs
 		if m.loading {
 			content += "Loading..."
 		} else if m.error != nil {
@@ -211,7 +258,7 @@ func (m Model) View() string {
 
 	// Help
 	var help string
-	if m.tabs.Current == 1 {
+	if m.tabs.Current > 0 {
 		if m.error != nil {
 			help = "r: Retry • ←/→: Switch tabs • q: Quit"
 		} else {
